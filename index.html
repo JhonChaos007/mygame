@@ -3,47 +3,95 @@
 <head>
   <title>2D Run Game</title>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+  <style>
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial;
+    }
+    progress {
+      width: 50%;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-  <div id="status">初期化中...</div>
-  
+  <div id="loading">
+    <h1>ゲームをロード中...</h1>
+    <p id="status">Pyodideを初期化しています</p>
+    <progress value="0" max="100"></progress>
+  </div>
+
   <script>
     async function startGame() {
       const status = document.getElementById('status');
-      
+      const progressBar = document.querySelector('progress');
+
       try {
-        // 1. Pyodide初期化
-        status.textContent = "Python環境を準備中...";
+        // ステップ1: Pyodide初期化
+        status.textContent = "Python環境を準備中 (ステップ1/3)...";
         const pyodide = await loadPyodide({
-          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/",
+          stdout: msg => console.log(msg),
+          stderr: msg => console.error(msg)
         });
+        progressBar.value = 33;
 
-        // 2. 必須パッケージロード
-        status.textContent = "依存パッケージをインストール中...";
-        await pyodide.loadPackage(["numpy"]);
-        
-        // 3. Pygameのカスタムビルドをロード
-        status.textContent = "Pygameをロード中...（数分かかります）";
-        await pyodide.loadPackage(
-          "https://github.com/pygame-web/pygame-web/releases/download/v2.5.2/Pygame-2.5.2-cp311-wasm32.whl"
-        );
+        // ステップ2: 依存パッケージインストール
+        status.textContent = "基本パッケージをロード中 (ステップ2/3)...";
+        await pyodide.loadPackage(["numpy"], {
+          progress: (loaded, total) => {
+            status.textContent = `パッケージダウンロード中 ${loaded}/${total}...`;
+          }
+        });
+        progressBar.value = 66;
 
-        // 4. ゲームコード実行
-        status.textContent = "ゲームを起動中...";
+        // ステップ3: Pygame WASM版をインストール
+        status.textContent = "Pygameをインストール中 (ステップ3/3)...";
+        await pyodide.runPythonAsync(`
+          import micropip
+          await micropip.install(
+            'https://github.com/pygame-web/pygame-web/releases/download/v2.5.2/Pygame-2.5.2-cp311-wasm32.whl',
+            keep_going=True
+          )
+        `);
+        progressBar.value = 100;
+
+        // ステップ4: ゲーム起動
+        status.textContent = "ゲームを起動しています...";
         await pyodide.runPythonAsync(`
           import pygame
-          pygame.init()
-          print("Pygameが正常にインポートされました！")
+          print("Pygameバージョン:", pygame.__version__)
           
           # ここにゲームコードを貼り付け
+          pygame.init()
+          screen = pygame.display.set_mode((800, 600))
+          pygame.display.set_caption("2D Run Game WASM")
+          
+          # テスト描画
+          screen.fill((0, 0, 128))
+          font = pygame.font.Font(None, 36)
+          text = font.render("Pygameが動作しました！", True, (255, 255, 255))
+          screen.blit(text, (50, 50))
+          pygame.display.flip()
         `);
-        
-        status.style.display = "none";
+
+        document.getElementById('loading').style.display = 'none';
       } catch (e) {
-        status.innerHTML = `エラー:<br>${e}`;
+        status.innerHTML = `エラーが発生しました:<br>${e}`;
+        console.error(e);
       }
     }
-    
+
     startGame();
   </script>
 </body>
