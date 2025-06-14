@@ -1,104 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>2D Run Game WASM</title>
+  <title>2D Run Game</title>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #222;
-    }
-    #game-container {
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #loading {
-      color: white;
-      font-family: Arial;
-      text-align: center;
-    }
-    canvas {
-      max-width: 100%;
-      max-height: 100%;
-    }
-  </style>
 </head>
 <body>
-  <div id="loading">
-    <h1>Loading Game...</h1>
-    <p>初回ロードには1-2分かかります</p>
-    <progress></progress>
-  </div>
-  <div id="game-container"></div>
-
+  <div id="status">初期化中...</div>
+  
   <script>
-    // 画像をBase64に変換して埋め込み
-    const assets = {
-      background: "data:image/png;base64,...", // 実際のBase64データ
-      run1: "data:image/png;base64,...",
-      // 他の画像も同様に...
-    };
-
     async function startGame() {
-      const loading = document.getElementById('loading');
+      const status = document.getElementById('status');
+      
       try {
-        // Pyodide初期化
-        loading.innerHTML = "Python環境を準備中...";
-        let pyodide = await loadPyodide({
+        // 1. Pyodide初期化
+        status.textContent = "Python環境を準備中...";
+        const pyodide = await loadPyodide({
           indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
         });
 
-        // 必要なパッケージロード
-        loading.innerHTML = "Pygameをロード中...";
-        await pyodide.loadPackage(["pygame", "numpy"]);
+        // 2. 必須パッケージロード
+        status.textContent = "依存パッケージをインストール中...";
+        await pyodide.loadPackage(["numpy"]);
+        
+        // 3. Pygameのカスタムビルドをロード
+        status.textContent = "Pygameをロード中...（数分かかります）";
+        await pyodide.loadPackage(
+          "https://github.com/pygame-web/pygame-web/releases/download/v2.5.2/Pygame-2.5.2-cp311-wasm32.whl"
+        );
 
-        // Pythonコード実行
-        loading.innerHTML = "ゲームを起動中...";
+        // 4. ゲームコード実行
+        status.textContent = "ゲームを起動中...";
         await pyodide.runPythonAsync(`
           import pygame
-          import sys
-          import random
-          from js import document
-          import base64
-          from io import BytesIO
-
-          # WASM用設定
-          pygame.display.init()
-          canvas = document.getElementById("game-container")
-          screen = pygame.display.set_mode((800, 600))
-          pygame.display.set_caption("2D Run Game WASM")
-
-          # 画像読み込み関数
-          def load_b64_image(b64_data):
-            return pygame.image.load(BytesIO(base64.b64decode(b64_data.split(',')[1])))
-
-          # アセット読み込み
-          background_img = load_b64_image("${assets.background}")
-          # 他の画像も同様に...
-
-          # メインゲームループ（元のコードをWASM用に調整）
-          def main():
-              # ここに元のmain()関数の中身を貼り付け
-              # ただし以下の点を変更:
-              # 1. ファイル読み込み → Base64に置き換え
-              # 2. フルスクリーン解除
-              # 3. タッチ対応追加
-              pass
-
-          main()
+          pygame.init()
+          print("Pygameが正常にインポートされました！")
+          
+          # ここにゲームコードを貼り付け
         `);
-
-        loading.style.display = "none";
+        
+        status.style.display = "none";
       } catch (e) {
-        loading.innerHTML = `エラーが発生しました:<br>${e}`;
-        console.error(e);
+        status.innerHTML = `エラー:<br>${e}`;
       }
     }
-
+    
     startGame();
   </script>
 </body>
