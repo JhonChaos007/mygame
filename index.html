@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Game</title>
+  <!-- Pyodide（ブラウザでPythonを動かす魔法） -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+  <style>
+    #game-container {
+      width: 800px;
+      height: 600px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  
+  <script>
+    async function startGame() {
+      // Python環境準備
+      let pyodide = await loadPyodide();
+      await pyodide.loadPackage(["micropip"]);
+      
+      // Kivyインストール
+      await pyodide.runPythonAsync(`
+        import micropip
+        await micropip.install('kivy')
+        
+        # ここにゲームコードを貼り付け
+        from kivy.app import App
+        from kivy.uix.button import Button
+        
+        class MyApp(App):
+            def build(self):
+                return Button(text='成功！', font_size=50)
+                
+        MyApp().run()
+      `);
+    }
+    startGame();
+  </script>
+</body>
+</html>
